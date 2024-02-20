@@ -10,8 +10,8 @@ app.use(cookieParser());
 
 import userRouter from "./routes/user.routes.js";
 
-app.use("api/users", userRouter);
+app.use("/api/users", userRouter);
 
-// http://localhost:8000/api/users
+// http://localhost:8000/api/users/send-otp
 
 export default app;

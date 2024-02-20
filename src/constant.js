@@ -1,1 +1,1 @@
-export const DB_NAME = "chatapp";
+export const DB_NAME = "ilanos";
