@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { RefreshModel } from "../models/refresh.model.js";
 const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
 const accessTokenExpiry = process.env.ACCESS_TOKEN_EXPIRY;
 const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET;
@@ -17,4 +18,15 @@ const generateTokens = (payload) => {
   return { accessToken, refreshToken };
 };
 
-export { generateTokens };
+const storeRefreshToken = async (token, userId) => {
+  try {
+    await RefreshModel.create({
+      token,
+      userId,
+    });
+  } catch (error) {
+    console.log(error.message);
+  }
+};
+
+export { generateTokens, storeRefreshToken };
