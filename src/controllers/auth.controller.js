@@ -3,7 +3,14 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { findUser, createUser } from "../services/user.service.js";
-import { generateTokens, storeRefreshToken } from "../utils/generateTokens.js";
+import {
+  findRefreshToken,
+  generateTokens,
+  removeToken,
+  storeRefreshToken,
+  updateRefreshToken,
+  verifyRefreshToken,
+} from "../services/token.service.js";
 import UserDto from "../utils/user.dto.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -93,7 +100,7 @@ const verifyOtp = asyncHandler(async (req, res) => {
     const userDto = new UserDto(user);
 
     res
-      .status(201)
+      .status(200)
       .json(
         new ApiResponse(
           200,
@@ -114,7 +121,7 @@ const activate = asyncHandler(async (req, res) => {
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  const base64Data = avatar.replace(/^data:image\/jpeg;base64,/, "");
+  const base64Data = avatar.replace(/^data:image\/(jpeg|jpg|png);base64,/, "");
   const decodedImage = Buffer.from(base64Data, "base64");
   const imagePath = `${Date.now()}-${Math.round(Math.random() * 1e9)}.png`;
   const filePath = path.resolve(__dirname, `../../public/temp/${imagePath}`);
@@ -153,4 +160,79 @@ const activate = asyncHandler(async (req, res) => {
   }
 });
 
-export { sentOtp, verifyOtp, activate };
+const refresh = asyncHandler(async (req, res) => {
+  // Get refresh token from cookie
+  const { refreshToken: refreshTokenFromCookie } = req.cookies;
+
+  // Check if token is valid
+  let userData;
+  try {
+    userData = await verifyRefreshToken(refreshTokenFromCookie);
+  } catch (error) {
+    return res.status(401).json(new ApiError(401, "Invalid Token"));
+  }
+
+  try {
+    const token = await findRefreshToken(userData._id, refreshTokenFromCookie);
+    if (!token) {
+      return res.status(401).json(new ApiError(401, "Invalid token"));
+    }
+  } catch (error) {
+    return res.status(500).json(new ApiError(500, "Internal error"));
+  }
+  const user = await findUser({ _id: userData._id });
+
+  // Check if valid user
+  if (!user) {
+    return res.status(404).json(new ApiError(404, "No user found"));
+  }
+
+  // Generate new tokens
+  const { refreshToken, accessToken } = generateTokens({ _id: userData._id });
+  console.log(refreshToken, accessToken);
+  // Update refresh token
+  try {
+    await updateRefreshToken(userData._id, refreshToken);
+  } catch (error) {
+    return res.status(500).json(new ApiError(500, "Internal error"));
+  }
+
+  // Put tokens in cookies
+  res.cookie("refreshToken", refreshToken, {
+    maxAge: 100 * 60 * 60 * 24 * 30,
+    httpOnly: true,
+  });
+
+  res.cookie("accessToken", accessToken, {
+    maxAge: 100 * 60 * 60 * 24 * 30,
+    httpOnly: true,
+  });
+
+  // Send response
+  console.log(userData);
+  res
+    .status(201)
+    .json(
+      new ApiResponse(
+        200,
+        { user: new UserDto(user), auth: true },
+        "Refresh successful"
+      )
+    );
+});
+
+const logout = asyncHandler(async (req, res) => {
+  const { refreshToken } = req.cookies;
+  // delete refresh token
+  await removeToken(refreshToken);
+
+  res.clearCookie("refreshToken");
+  res.clearCookie("accessToken");
+  res
+    .status(201)
+    .json(
+      new ApiResponse(200, { user: null, auth: false }, "Refresh successful")
+    );
+});
+
+export { sentOtp, verifyOtp, activate, refresh, logout };
