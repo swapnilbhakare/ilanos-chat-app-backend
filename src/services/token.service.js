@@ -45,15 +45,10 @@ const findRefreshToken = async (userId, refreshToken) => {
 
 const updateRefreshToken = async (userId, refreshToken) => {
   try {
-    console.log("Updating refresh token for user ID:", userId);
-    console.log("New refresh token:", refreshToken);
-
     const result = await RefreshModel.updateOne(
       { userId: userId },
       { token: refreshToken }
     );
-
-    console.log("Update result:", result);
 
     return result;
   } catch (error) {

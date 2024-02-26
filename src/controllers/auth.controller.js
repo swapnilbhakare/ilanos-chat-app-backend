@@ -189,7 +189,7 @@ const refresh = asyncHandler(async (req, res) => {
 
   // Generate new tokens
   const { refreshToken, accessToken } = generateTokens({ _id: userData._id });
-  console.log(refreshToken, accessToken);
+
   // Update refresh token
   try {
     await updateRefreshToken(userData._id, refreshToken);
@@ -209,7 +209,7 @@ const refresh = asyncHandler(async (req, res) => {
   });
 
   // Send response
-  console.log(userData);
+
   res
     .status(201)
     .json(
