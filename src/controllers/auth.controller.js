@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { findUser, createUser } from "../services/user.service.js";
+
 import {
   findRefreshToken,
   generateTokens,
@@ -119,25 +120,37 @@ const activate = asyncHandler(async (req, res) => {
     return res.status(400).json(new ApiError(400, "All fields are required!"));
   }
 
+  const userId = req.user._id;
+
+  const user = await findUser({ _id: userId });
+  if (!user) {
+    return res.status(404).json(new ApiError(404, "User not found"));
+  }
+
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  const base64Data = avatar.replace(/^data:image\/(jpeg|jpg|png);base64,/, "");
-  const decodedImage = Buffer.from(base64Data, "base64");
-  const imagePath = `${Date.now()}-${Math.round(Math.random() * 1e9)}.png`;
-  const filePath = path.resolve(__dirname, `../../public/temp/${imagePath}`);
+
+  let cloudinaryUrl = "";
 
   try {
-    const jimpResponse = await Jimp.read(decodedImage);
-    jimpResponse.resize(150, Jimp.AUTO).write(filePath);
-    const cloudinaryResponse = await uploadOnCloudinary(filePath);
+    if (avatar !== user.avatar) {
+      const base64Data = avatar.replace(
+        /^data:image\/(jpeg|jpg|png);base64,/,
+        ""
+      );
+      const decodedImage = Buffer.from(base64Data, "base64");
+      const imagePath = `${Date.now()}-${Math.round(Math.random() * 1e9)}.png`;
+      const filePath = path.resolve(
+        __dirname,
+        `../../public/temp/${imagePath}`
+      );
 
-    const cloudinaryUrl = cloudinaryResponse.secure_url;
-
-    const userId = req.user._id;
-    // update user
-    const user = await findUser({ _id: userId });
-    if (!user) {
-      return res.status(404).json(new ApiError(404, "User not found"));
+      const jimpResponse = await Jimp.read(decodedImage);
+      jimpResponse.resize(150, Jimp.AUTO).write(filePath);
+      const cloudinaryResponse = await uploadOnCloudinary(filePath);
+      cloudinaryUrl = cloudinaryResponse.secure_url;
+    } else {
+      cloudinaryUrl = user.avatar;
     }
 
     user.activated = true;
@@ -151,7 +164,7 @@ const activate = asyncHandler(async (req, res) => {
         new ApiResponse(
           200,
           { user: new UserDto(user), auth: true },
-          "activated successfully"
+          "Activated successfully"
         )
       );
   } catch (error) {

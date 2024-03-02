@@ -2,20 +2,12 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { createServer } from "http";
-import { Server } from "socket.io";
-const app = express();
 
+import { setupSocket } from "./socket.js";
+const app = express();
 const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:3000",
-    credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"],
-  },
-});
-io.on("connection", (socket) => {
-  console.log(socket.id);
-});
+
+const io = setupSocket(server);
 
 app.use(
   cors({
